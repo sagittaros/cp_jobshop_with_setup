@@ -16,24 +16,24 @@ def index():
     )
     return [
         [
-            [alt("CP1", "P1", 3, 1, 100), alt("CP2", "P1", 4, 1, 100)],  # task 1
-            [alt("DP1", "P1", 4, 4, 100), alt("DP2", "P1", 6, 3, 100)],  # task 2
-            [alt("PK1", "P1", 2, 0, 100)],  # task 3
+            [alt("CP1", "P1", 3, 1, 10), alt("CP2", "P1", 4, 1, 10)],  # task 1
+            [alt("DP1", "P1", 4, 4, 10), alt("DP2", "P1", 6, 3, 10)],  # task 2
+            [alt("PK1", "P1", 2, 0, 10)],  # task 3
         ],  # job 1
         [
-            [alt("CP1", "P1", 3, 1, 210), alt("CP2", "P1", 4, 1, 210)],  # task 1
-            [alt("DP1", "P1", 4, 4, 210), alt("DP2", "P1", 6, 3, 210)],  # task 2
-            [alt("PK1", "P1", 2, 0, 210)],  # task 3
+            [alt("CP1", "P1", 3, 1, 21), alt("CP2", "P1", 4, 1, 21)],  # task 1
+            [alt("DP1", "P1", 4, 4, 21), alt("DP2", "P1", 6, 3, 21)],  # task 2
+            [alt("PK1", "P1", 2, 0, 21)],  # task 3
         ],  # job 2
         [
-            [alt("CP1", "P2", 3, 1, 220), alt("CP2", "P2", 4, 1, 220)],  # task 1
-            [alt("DP1", "P2", 4, 4, 220), alt("DP2", "P2", 6, 3, 220)],  # task 2
-            [alt("PK1", "P2", 2, 0, 220)],  # task 3
+            [alt("CP1", "P2", 3, 1, 22), alt("CP2", "P2", 4, 1, 22)],  # task 1
+            [alt("DP1", "P2", 4, 4, 22), alt("DP2", "P2", 6, 3, 22)],  # task 2
+            [alt("PK1", "P2", 2, 0, 22)],  # task 3
         ],  # job 3
         [
-            [alt("CP1", "P2", 3, 1, 160), alt("CP2", "P2", 4, 1, 160)],  # task 1
-            [alt("DP1", "P2", 4, 4, 160), alt("DP2", "P2", 6, 3, 160)],  # task 2
-            [alt("PK1", "P2", 2, 0, 160)],  # task 3
+            [alt("CP1", "P2", 3, 1, 16), alt("CP2", "P2", 4, 1, 16)],  # task 1
+            [alt("DP1", "P2", 4, 4, 16), alt("DP2", "P2", 6, 3, 16)],  # task 2
+            [alt("PK1", "P2", 2, 0, 16)],  # task 3
         ],  # job 4
     ]
 
@@ -80,6 +80,7 @@ def main():
     starts_per_machines = collections.defaultdict(list)
     ends_per_machines = collections.defaultdict(list)
     types_per_machines = collections.defaultdict(list)
+    setuptimes_per_machines = collections.defaultdict(list)
     ranks_per_machines = collections.defaultdict(list)
     job_starts = {}  # indexed by (job_id, task_id).
     job_presences = {}  # indexed by (job_id, task_id, alt_id).
@@ -131,7 +132,6 @@ def main():
                 l_rank = model.NewIntVar(-1, num_jobs, "rank" + alt_suffix)
                 l_presences.append(l_presence)
                 l_machine = alt.machine_id
-                l_type = alt.type
 
                 # Link the master variables with the local ones.
                 model.Add(start == l_start).OnlyEnforceIf(l_presence)
@@ -146,7 +146,8 @@ def main():
                 starts_per_machines[l_machine].append(l_start)
                 ends_per_machines[l_machine].append(l_end)
                 presences_per_machines[l_machine].append(l_presence)
-                types_per_machines[l_machine].append(l_type)
+                types_per_machines[l_machine].append(alt.type)
+                setuptimes_per_machines[l_machine].append(alt.setup_time)
                 ranks_per_machines[l_machine].append(l_rank)
 
                 # Store the variables for the solution.
@@ -170,6 +171,7 @@ def main():
         machine_ends = ends_per_machines[machine_id]
         machine_presences = presences_per_machines[machine_id]
         machine_types = types_per_machines[machine_id]
+        machine_setuptimes = setuptimes_per_machines[machine_id]
         machine_ranks = ranks_per_machines[machine_id]
         intervals = intervals_per_machines[machine_id]
         arcs = []
@@ -202,11 +204,11 @@ def main():
                 model.Add(machine_ranks[j] == machine_ranks[i] + 1).OnlyEnforceIf(lit)
 
                 # Compute the transition time if task j is the successor of task i.
-                if machine_types[i] != machine_types[j]:
-                    transition_time = 3
-                    switch_literals.append(lit)
-                else:
+                if machine_types[i] == machine_types[j]:
                     transition_time = 0
+                else:
+                    transition_time = machine_setuptimes[j]
+                    switch_literals.append(lit)
                 # We add the reified transition to link the literals with the times
                 # of the tasks.
                 model.Add(
@@ -220,10 +222,9 @@ def main():
     model.AddMaxEquality(makespan, job_ends)
     makespan_weight = 1
     transition_weight = 5
-    model.Minimize(makespan)
-    # model.Minimize(
-    #     makespan * makespan_weight + sum(switch_literals) * transition_weight
-    # )
+    model.Minimize(
+        makespan * makespan_weight + sum(switch_literals) * transition_weight
+    )
 
     # Write problem to file.
     with open("problem.proto", "w") as text_file:
