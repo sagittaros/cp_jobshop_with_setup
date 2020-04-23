@@ -6,10 +6,18 @@ from .timeline import export_html
 from .solprinter import SolutionPrinter
 from enum import Enum
 
+# TODO FIXME
+"""
+1. due date makes solution infeasible
+2. sequence dependent setup_time may not be so naive, might need AddElement
+3. initial_setup_time not correct
+"""
+
 
 class Objective(Enum):
     SetupTime = "setup_time"
     Switches = "switches"  # implicitly include makespan
+    Makespan = "makespan"
 
 
 # 2 product types P1 and P2
@@ -165,7 +173,7 @@ def run_model(objective_type: Enum):
                 model.Add(end == l_end).OnlyEnforceIf(l_presence)
 
                 # due date constraint
-                model.Add(end < alt.due).OnlyEnforceIf(l_presence)
+                # model.Add(end < alt.due).OnlyEnforceIf(l_presence)
 
                 # Add the local variables to the right machine.
                 intervals_per_machines[alt.machine_id].append(l_interval)
@@ -185,7 +193,6 @@ def run_model(objective_type: Enum):
 
             # Only one machine can process each lot.
             model.Add(sum(l_presences) == 1)
-            model.Add(sum(l_setup_presences) <= 1)
         job_ends.append(previous_end)
 
     # Create machines constraints nonoverlap process
@@ -198,7 +205,6 @@ def run_model(objective_type: Enum):
     switch_literals = []
     setup_coeffs = []
     for machine_id in machines:
-        print(machine_id)
         machine_starts = starts_per_machines[machine_id]
         machine_ends = ends_per_machines[machine_id]
         machine_presences = presences_per_machines[machine_id]
@@ -211,12 +217,12 @@ def run_model(objective_type: Enum):
         all_machine_tasks = range(num_machine_tasks)
 
         for i in all_machine_tasks:
-            print("  %i" % i)
             # Initial arc from the dummy node (0) to a task.
             start_lit = model.NewBoolVar("")
             arcs.append([0, i + 1, start_lit])
-            # If this task is the first, set both rank and start to 0.
+            # If this task is the first, set rank and setuptime
             model.Add(machine_ranks[i] == 0).OnlyEnforceIf(start_lit)
+            model.AddImplication(start_lit, machine_setup_presences[i])
             # Final arc from an arc to the dummy node.
             arcs.append([i + 1, 0, model.NewBoolVar("")])
             # Self arc if the task is not performed.
@@ -237,25 +243,14 @@ def run_model(objective_type: Enum):
 
                 # Compute the transition time if task j is the successor of task i.
                 if machine_types[i] != machine_types[j]:
-                    print(
-                        "    %i with diff: i(%s) and j(%s)"
-                        % (j, machine_types[i], machine_types[j])
-                    )
                     switch_literals.append(lit)
                     setup_coeffs.append(machine_setuptimes[j])
-                    model.AddImplication(lit, machine_setup_presences[j])
-                else:
-                    print(
-                        "    %i: i(%s) and j(%s)"
-                        % (j, machine_types[i], machine_types[j])
-                    )
 
                 # We add the reified transition to link the literals with the times
                 # of the tasks.
                 model.Add(machine_starts[j] >= machine_ends[i]).OnlyEnforceIf(lit)
 
         model.AddCircuit(arcs)
-        print()
 
     # Objective.
     makespan = model.NewIntVar(0, horizon, "makespan")
@@ -274,6 +269,8 @@ def run_model(objective_type: Enum):
         model.Minimize(
             makespan * makespan_weight + sum(switch_literals) * transition_weight
         )
+    elif objective_type == Objective.Makespan:
+        model.Minimize(makespan)
 
     # Write problem to file.
     with open("problem.proto", "w") as text_file:
@@ -352,7 +349,7 @@ def run_model(objective_type: Enum):
 
 
 def main():
-    run_model(Objective.Switches)
+    run_model(Objective.Makespan)
 
 
 if __name__ == "__main__":
