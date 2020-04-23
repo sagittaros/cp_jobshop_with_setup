@@ -3,6 +3,7 @@ import collections
 from ortools.sat.python import cp_model
 from datetime import datetime, timedelta
 from .timeline import export_html
+from .solprinter import SolutionPrinter
 
 # 2 product types P1 and P2
 # 5 machines CP1, CP2, DP1, DP2, PK1 (human)
@@ -110,8 +111,8 @@ def main():
             job_starts[(job_id, task_id)] = start
 
             # Add precedence with previous task in the same job.
-            # if previous_end:
-            # model.Add(start >= previous_end)
+            if previous_end:
+                model.Add(start >= previous_end)
             previous_end = end
 
             # Create alternative intervals.
@@ -229,7 +230,8 @@ def main():
     # Solve.
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = 60 * 60 * 2
-    status = solver.Solve(model)
+    solution_printer = SolutionPrinter(makespan)
+    status = solver.SolveWithSolutionCallback(model, solution_printer)
 
     # Print solution.
     solution = []
