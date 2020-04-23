@@ -16,24 +16,24 @@ def index():
     )
     return [
         [
-            [alt("CP1", "P1", 3, 1, 10), alt("CP2", "P1", 4, 1, 10)],  # task 1
-            [alt("DP1", "P1", 4, 4, 10), alt("DP2", "P1", 6, 3, 10)],  # task 2
-            [alt("PK1", "P1", 2, 0, 10)],  # task 3
+            [alt("CP1", "P1", 3, 1, 100), alt("CP2", "P1", 4, 1, 100)],  # task 1
+            [alt("DP1", "P1", 4, 4, 100), alt("DP2", "P1", 6, 3, 100)],  # task 2
+            [alt("PK1", "P1", 2, 0, 100)],  # task 3
         ],  # job 1
         [
-            [alt("CP1", "P1", 3, 1, 21), alt("CP2", "P1", 4, 1, 21)],  # task 1
-            [alt("DP1", "P1", 4, 4, 21), alt("DP2", "P1", 6, 3, 21)],  # task 2
-            [alt("PK1", "P1", 2, 0, 21)],  # task 3
+            [alt("CP1", "P1", 3, 1, 210), alt("CP2", "P1", 4, 1, 210)],  # task 1
+            [alt("DP1", "P1", 4, 4, 210), alt("DP2", "P1", 6, 3, 210)],  # task 2
+            [alt("PK1", "P1", 2, 0, 210)],  # task 3
         ],  # job 2
         [
-            [alt("CP1", "P2", 3, 1, 22), alt("CP2", "P2", 4, 1, 22)],  # task 1
-            [alt("DP1", "P2", 4, 4, 22), alt("DP2", "P2", 6, 3, 22)],  # task 2
-            [alt("PK1", "P2", 2, 0, 22)],  # task 3
+            [alt("CP1", "P2", 3, 1, 220), alt("CP2", "P2", 4, 1, 220)],  # task 1
+            [alt("DP1", "P2", 4, 4, 220), alt("DP2", "P2", 6, 3, 220)],  # task 2
+            [alt("PK1", "P2", 2, 0, 220)],  # task 3
         ],  # job 3
         [
-            [alt("CP1", "P2", 3, 1, 16), alt("CP2", "P2", 4, 1, 16)],  # task 1
-            [alt("DP1", "P2", 4, 4, 16), alt("DP2", "P2", 6, 3, 16)],  # task 2
-            [alt("PK1", "P2", 2, 0, 16)],  # task 3
+            [alt("CP1", "P2", 3, 1, 160), alt("CP2", "P2", 4, 1, 160)],  # task 1
+            [alt("DP1", "P2", 4, 4, 160), alt("DP2", "P2", 6, 3, 160)],  # task 2
+            [alt("PK1", "P2", 2, 0, 160)],  # task 3
         ],  # job 4
     ]
 
@@ -53,7 +53,9 @@ def compute_horizon(jobs):
         for task in job:
             max_task_duration = 0
             for alt in task:
-                max_task_duration = max(max_task_duration, alt.processing_time)
+                max_task_duration = max(
+                    max_task_duration, alt.processing_time + alt.setup_time
+                )
             horizon += max_task_duration
     return horizon
 
@@ -180,7 +182,7 @@ def main():
             arcs.append([0, i + 1, start_lit])
             # If this task is the first, set both rank and start to 0.
             model.Add(machine_ranks[i] == 0).OnlyEnforceIf(start_lit)
-            model.Add(machine_starts[i] == 0).OnlyEnforceIf(start_lit)
+            # model.Add(machine_starts[i] == 0).OnlyEnforceIf(start_lit)
             # Final arc from an arc to the dummy node.
             arcs.append([i + 1, 0, model.NewBoolVar("")])
             # Self arc if the task is not performed.
@@ -208,7 +210,7 @@ def main():
                 # We add the reified transition to link the literals with the times
                 # of the tasks.
                 model.Add(
-                    machine_starts[j] == machine_ends[i] + transition_time
+                    machine_starts[j] >= machine_ends[i] + transition_time
                 ).OnlyEnforceIf(lit)
 
         model.AddCircuit(arcs)
