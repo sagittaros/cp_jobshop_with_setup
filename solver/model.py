@@ -4,6 +4,13 @@ from ortools.sat.python import cp_model
 from datetime import datetime, timedelta
 from .timeline import export_html
 from .solprinter import SolutionPrinter
+from enum import Enum
+
+
+class Objective(Enum):
+    SetupTime = "setup_time"
+    Switches = "switches"  # implicitly include makespan
+
 
 # 2 product types P1 and P2
 # 5 machines CP1, CP2, DP1, DP2, PK1 (human)
@@ -60,7 +67,7 @@ def compute_horizon(jobs):
     return horizon
 
 
-def main():
+def run_model(objective_type: Enum):
     # Model.
     model = cp_model.CpModel()
 
@@ -166,6 +173,7 @@ def main():
 
     # Transition times and transition costs using a circuit constraint.
     switch_literals = []
+    setup_coeffs = []
     for machine_id in machines:
         machine_starts = starts_per_machines[machine_id]
         machine_ends = ends_per_machines[machine_id]
@@ -208,6 +216,7 @@ def main():
                 else:
                     transition_time = machine_setuptimes[j]
                     switch_literals.append(lit)
+                    setup_coeffs.append(machine_setuptimes[j])
                 # We add the reified transition to link the literals with the times
                 # of the tasks.
                 model.Add(
@@ -219,11 +228,20 @@ def main():
     # Objective.
     makespan = model.NewIntVar(0, horizon, "makespan")
     model.AddMaxEquality(makespan, job_ends)
-    makespan_weight = 1
-    transition_weight = 5
-    model.Minimize(
-        makespan * makespan_weight + sum(switch_literals) * transition_weight
-    )
+
+    if objective_type == Objective.SetupTime:
+        model.Minimize(
+            sum(
+                switch_literals[i] * setup_coeffs[i]
+                for i in range(len(switch_literals))
+            )
+        )
+    elif objective_type == Objective.Switches:
+        makespan_weight = 1
+        transition_weight = 5
+        model.Minimize(
+            makespan * makespan_weight + sum(switch_literals) * transition_weight
+        )
 
     # Write problem to file.
     with open("problem.proto", "w") as text_file:
@@ -273,9 +291,14 @@ def main():
         print("Solve status: %s" % solver.StatusName(status))
         print("Objective value: %i" % solver.ObjectiveValue())
         print("Makespan: %i" % solver.Value(makespan))
+        print("Switches: %i" % solver.Value(sum(switch_literals)))
         export_html(solution)
     elif status == cp_model.INFEASIBLE:
         print("INFEASIBLE")
+
+
+def main():
+    run_model(Objective.Switches)
 
 
 if __name__ == "__main__":
