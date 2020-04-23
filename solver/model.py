@@ -184,7 +184,6 @@ def main():
             arcs.append([0, i + 1, start_lit])
             # If this task is the first, set both rank and start to 0.
             model.Add(machine_ranks[i] == 0).OnlyEnforceIf(start_lit)
-            # model.Add(machine_starts[i] == 0).OnlyEnforceIf(start_lit)
             # Final arc from an arc to the dummy node.
             arcs.append([i + 1, 0, model.NewBoolVar("")])
             # Self arc if the task is not performed.
