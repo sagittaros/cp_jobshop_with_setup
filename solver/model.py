@@ -35,6 +35,11 @@ def index():
             [alt("PK1", "P1", 2, 0, 21)],  # task 3
         ],  # job 2
         [
+            [alt("CP1", "P1", 3, 1, 100), alt("CP2", "P1", 4, 1, 100)],  # task 1
+            [alt("DP1", "P1", 4, 4, 100), alt("DP2", "P1", 6, 3, 100)],  # task 2
+            [alt("PK1", "P1", 2, 0, 100)],  # task 3
+        ],  # job 2
+        [
             [alt("CP1", "P2", 3, 1, 22), alt("CP2", "P2", 4, 1, 22)],  # task 1
             [alt("DP1", "P2", 4, 4, 22), alt("DP2", "P2", 6, 3, 22)],  # task 2
             [alt("PK1", "P2", 2, 0, 22)],  # task 3
@@ -43,6 +48,16 @@ def index():
             [alt("CP1", "P2", 3, 1, 16), alt("CP2", "P2", 4, 1, 16)],  # task 1
             [alt("DP1", "P2", 4, 4, 16), alt("DP2", "P2", 6, 3, 16)],  # task 2
             [alt("PK1", "P2", 2, 0, 16)],  # task 3
+        ],  # job 4
+        [
+            [alt("CP1", "P2", 3, 1, 100), alt("CP2", "P2", 4, 1, 100)],  # task 1
+            [alt("DP1", "P2", 4, 4, 100), alt("DP2", "P2", 6, 3, 100)],  # task 2
+            [alt("PK1", "P2", 2, 0, 100)],  # task 3
+        ],  # job 4
+        [
+            [alt("CP1", "P2", 3, 1, 100), alt("CP2", "P2", 4, 1, 100)],  # task 1
+            [alt("DP1", "P2", 4, 4, 100), alt("DP2", "P2", 6, 3, 100)],  # task 2
+            [alt("PK1", "P2", 2, 0, 100)],  # task 3
         ],  # job 4
     ]
 
@@ -69,7 +84,7 @@ def compute_horizon(jobs):
     return horizon
 
 
-def run_model(objective_type: Enum):
+def run_model(objective_type: Enum, timeline_html: str):
     # Model.
     model = cp_model.CpModel()
 
@@ -309,13 +324,14 @@ def run_model(objective_type: Enum):
         print("Objective value: %i" % solver.ObjectiveValue())
         print("Makespan: %i" % solver.Value(makespan))
         print("Transition: %i" % solver.Value(sum(switch_literals)))
-        export_html(solution)
+        export_html(solution, timeline_html)
     elif status == cp_model.INFEASIBLE:
         print("INFEASIBLE")
 
 
 def main():
-    run_model(Objective.Makespan)
+    for obj in Objective:
+        run_model(obj, f"{obj}.html")
     # run_model(Objective.SetupTime)
     # run_model(Objective.Composite)
     # run_model(Objective.Transition)

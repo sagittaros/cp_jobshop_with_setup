@@ -25,7 +25,7 @@ page_template = """
 """
 
 
-def export_html(data, height: int = 300):
+def export_html(data, file, height: int = 300):
     schema = {
         "machine_id": ("string", "Machine"),
         "label": ("string", "Label"),
@@ -39,7 +39,7 @@ def export_html(data, height: int = 300):
     # Create a JSON string.
     json = data_table.ToJSon(columns_order=("machine_id", "label", "start", "end"))
 
-    with open("timeline.html", "w") as html:
+    with open(file, "w") as html:
         html.write(page_template % (json, height))
 
 
