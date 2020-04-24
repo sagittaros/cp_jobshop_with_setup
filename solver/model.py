@@ -1,7 +1,7 @@
 import collections
 
 from ortools.sat.python import cp_model
-from datetime import datetime, timedelta, date
+from datetime import timedelta, date
 from .timeline import export_html
 from .solprinter import SolutionPrinter
 from enum import Enum
