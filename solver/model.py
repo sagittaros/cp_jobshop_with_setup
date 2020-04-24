@@ -171,8 +171,8 @@ def run_model(objective_type: Enum):
                 model.Add(duration == l_duration).OnlyEnforceIf(l_presence)
                 model.Add(end == l_end).OnlyEnforceIf(l_presence)
 
-                # due date constraint
-                # model.Add(end < alt.due).OnlyEnforceIf(l_presence)
+                # due date constraint FIXME
+                model.Add(end < alt.due).OnlyEnforceIf(l_presence)
 
                 # Add the local variables to the right machine.
                 intervals_per_machines[alt.machine_id].append(l_interval)
@@ -221,8 +221,6 @@ def run_model(objective_type: Enum):
             arcs.append([0, i + 1, start_lit])
             # If this task is the first, set rank and setuptime
             model.Add(machine_ranks[i] == 0).OnlyEnforceIf(start_lit)
-            model.AddImplication(start_lit, machine_setup_presences[i])
-            model.AddImplication(start_lit.Not(), machine_setup_presences[i].Not())
             # Final arc from an arc to the dummy node.
             arcs.append([i + 1, 0, model.NewBoolVar("")])
             # Self arc if the task is not performed.
@@ -245,10 +243,15 @@ def run_model(objective_type: Enum):
                 if machine_types[i] != machine_types[j]:
                     switch_literals.append(lit)
                     setup_coeffs.append(machine_setuptimes[j])
+                    transition_time = machine_setuptimes[j]
+                else:
+                    transition_time = 0
 
                 # We add the reified transition to link the literals with the times
                 # of the tasks.
-                model.Add(machine_starts[j] >= machine_ends[i]).OnlyEnforceIf(lit)
+                model.Add(
+                    machine_starts[j] >= machine_ends[i] + transition_time
+                ).OnlyEnforceIf(lit)
 
         model.AddCircuit(arcs)
 
@@ -359,6 +362,9 @@ def run_model(objective_type: Enum):
 
 def main():
     run_model(Objective.Makespan)
+    # run_model(Objective.SetupTime)
+    # run_model(Objective.Composite)
+    # run_model(Objective.Transition)
 
 
 if __name__ == "__main__":
