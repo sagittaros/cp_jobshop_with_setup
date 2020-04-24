@@ -6,13 +6,6 @@ from .timeline import export_html
 from .solprinter import SolutionPrinter
 from enum import Enum
 
-# TODO FIXME
-"""
-1. due date makes solution infeasible
-2. sequence dependent setup_time may not be so naive, might need AddElement
-3. initial_setup_time not correct
-"""
-
 
 class Objective(Enum):
     SetupTime = "setup_time"
@@ -93,7 +86,6 @@ def run_model(objective_type: Enum):
     # Global storage of variables.
     intervals_per_machines = collections.defaultdict(list)
     presences_per_machines = collections.defaultdict(list)
-    setup_presences_per_machines = collections.defaultdict(list)
     starts_per_machines = collections.defaultdict(list)
     ends_per_machines = collections.defaultdict(list)
     types_per_machines = collections.defaultdict(list)
@@ -103,8 +95,6 @@ def run_model(objective_type: Enum):
     job_presences = {}  # indexed by (job_id, task_id, alt_id).
     job_ranks = {}  # indexed by (job_id, task_id, alt_id).
     job_ends = []  # indexed by job_id
-    setup_starts = {}  # indexed by (job_id, task_id, alt_id).
-    setup_presences = {}  # indexed by (job_id, task_id, alt_id).
 
     # Populate variables and intervals
     for job_id in all_jobs:
@@ -153,41 +143,25 @@ def run_model(objective_type: Enum):
                 l_rank = model.NewIntVar(-1, num_jobs, "rank" + alt_suffix)
                 l_presences.append(l_presence)
 
-                # create optional setup_time for machine candidate
-                l_setup_presence = model.NewBoolVar("setup_presence" + alt_suffix)
-                l_setup_start = model.NewIntVar(0, horizon, "setup_start" + alt_suffix)
-                l_setup_duration = alt.setup_time
-                l_setup_interval = model.NewOptionalIntervalVar(
-                    l_setup_start,
-                    l_setup_duration,
-                    l_start,
-                    l_setup_presence,
-                    "setup_interval" + alt_suffix,
-                )
-                setup_starts[(job_id, task_id, alt_id)] = l_setup_start
-
                 # Link the master variables with the local ones.
                 model.Add(start == l_start).OnlyEnforceIf(l_presence)
                 model.Add(duration == l_duration).OnlyEnforceIf(l_presence)
                 model.Add(end == l_end).OnlyEnforceIf(l_presence)
 
-                # due date constraint FIXME
+                # due date constraint
                 model.Add(end < alt.due).OnlyEnforceIf(l_presence)
 
                 # Add the local variables to the right machine.
                 intervals_per_machines[alt.machine_id].append(l_interval)
-                intervals_per_machines[alt.machine_id].append(l_setup_interval)
                 starts_per_machines[alt.machine_id].append(l_start)
                 ends_per_machines[alt.machine_id].append(l_end)
                 presences_per_machines[alt.machine_id].append(l_presence)
-                setup_presences_per_machines[alt.machine_id].append(l_setup_presence)
                 types_per_machines[alt.machine_id].append(alt.type)
                 setuptimes_per_machines[alt.machine_id].append(alt.setup_time)
                 ranks_per_machines[alt.machine_id].append(l_rank)
 
                 # Store the variables for the solution.
                 job_presences[(job_id, task_id, alt_id)] = l_presence
-                setup_presences[(job_id, task_id, alt_id)] = l_setup_presence
                 job_ranks[(job_id, task_id, alt_id)] = l_rank
 
             # Only one machine can process each lot.
@@ -207,7 +181,6 @@ def run_model(objective_type: Enum):
         machine_starts = starts_per_machines[machine_id]
         machine_ends = ends_per_machines[machine_id]
         machine_presences = presences_per_machines[machine_id]
-        machine_setup_presences = setup_presences_per_machines[machine_id]
         machine_types = types_per_machines[machine_id]
         machine_setuptimes = setuptimes_per_machines[machine_id]
         machine_ranks = ranks_per_machines[machine_id]
@@ -331,28 +304,6 @@ def run_model(objective_type: Enum):
                             "  Job %i starts at %i (alt %i, duration %i) with rank %i on machine %s"
                             % (job_id, start_value, select, duration, rank, machine)
                         )
-
-                        # include setup time into solution
-                        if solver.BooleanValue(
-                            setup_presences[(job_id, task_id, alt_id)]
-                        ):
-                            setup_time = jobs[job_id][task_id][alt_id].setup_time
-                            setup_start = solver.Value(
-                                setup_starts[(job_id, task_id, alt_id)]
-                            )
-                            setup_end = setup_start + setup_time
-                            solution.append(
-                                {
-                                    "machine_id": machine,
-                                    "label": "setup_time",
-                                    "start": start + timedelta(days=setup_start),
-                                    "end": start + timedelta(days=setup_end),
-                                }
-                            )
-                            print(
-                                "  Job %i setups at %i (alt %i, duration %i) with on machine %s"
-                                % (job_id, setup_start, select, setup_time, machine)
-                            )
 
         print("Solve status: %s" % solver.StatusName(status))
         print("Objective value: %i" % solver.ObjectiveValue())
