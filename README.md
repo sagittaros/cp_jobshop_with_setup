@@ -8,5 +8,17 @@
 - Multiple objectives
 - Rendering to gantt chart
 
+## Instruction
+```
+python -m solver.model
+```
+
+## Screenshot
+![Alt text](/screenshot.png?raw=true)
+
+## Dependencies
+* ortools
+* gviz_api
+
 ## Modified from
 [scheduling_with_transitions_sat.py](https://github.com/google/or-tools/blob/stable/examples/contrib/scheduling_with_transitions_sat.py)
