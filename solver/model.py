@@ -4,7 +4,7 @@ from enum import Enum
 
 from ortools.sat.python import cp_model
 
-from .states import index
+from .states import index, existing_assignment_index
 from .solprinter import SolutionPrinter
 from .timeline import export_html
 
@@ -25,6 +25,13 @@ def list_machines(jobs):
     return list(machines_lookup.keys())
 
 
+def list_existing_machines(existing):
+    machines_lookup = {}
+    for assignment in existing:
+        machines_lookup[assignment.machine_id] = 1
+    return list(machines_lookup.keys())
+
+
 def compute_horizon(jobs):
     horizon = 0
     for job in jobs:
@@ -38,15 +45,16 @@ def compute_horizon(jobs):
     return horizon
 
 
-def run_model(objective_type: Enum, timeline_html: str):
+def run_model(jobs, existing, objective_type: Enum, timeline_html: str):
     # Model.
     model = cp_model.CpModel()
 
     # inputs
-    jobs = index()
     num_jobs = len(jobs)
     all_jobs = range(num_jobs)
-    machines = list_machines(jobs)
+    num_existing = len(existing)
+    all_existing = range(num_existing)
+    machines = set(list_machines(jobs)) | set(list_existing_machines(existing))
 
     # Compute a maximum makespan greedily.
     horizon = compute_horizon(jobs)
@@ -117,7 +125,9 @@ def run_model(objective_type: Enum, timeline_html: str):
                 l_interval = model.NewOptionalIntervalVar(
                     l_start, l_duration, l_end, l_presence, "interval" + alt_suffix
                 )
-                l_rank = model.NewIntVar(-1, num_jobs, "rank" + alt_suffix)
+                l_rank = model.NewIntVar(
+                    -1, num_jobs + num_existing, "rank" + alt_suffix
+                )
                 l_presences.append(l_presence)
 
                 # Link the master variables with the local ones.
@@ -145,6 +155,25 @@ def run_model(objective_type: Enum, timeline_html: str):
             # Only one machine can process each lot.
             model.Add(sum(l_presences) == 1)
         job_ends.append(previous_end)
+
+    for assignment_id in all_existing:
+        suffix = "_a%i" % assignment_id
+        assignment = existing[assignment_id]
+        presence = model.NewConstant(1)
+        start = model.NewConstant(assignment.start)
+        end = model.NewConstant(assignment.end)
+        duration = assignment.end - assignment.start
+        interval = model.NewIntervalVar(start, duration, end, "interval" + suffix)
+        rank = model.NewIntVar(-1, num_jobs + num_existing, "rank" + suffix)
+
+        # Add local variables to the machine
+        intervals_per_machines[assignment.machine_id].append(interval)
+        starts_per_machines[assignment.machine_id].append(start)
+        ends_per_machines[assignment.machine_id].append(end)
+        presences_per_machines[assignment.machine_id].append(presence)
+        types_per_machines[assignment.machine_id].append(assignment.type)
+        setuptimes_per_machines[assignment.machine_id].append(assignment.setup_time)
+        ranks_per_machines[assignment.machine_id].append(rank)
 
     # Create machines constraints nonoverlap process
     for machine_id in machines:
@@ -251,6 +280,7 @@ def run_model(objective_type: Enum, timeline_html: str):
     # Print solution.
     solution = []
     if status == cp_model.FEASIBLE or status == cp_model.OPTIMAL:
+        start = date(2020, 1, 1)
         for job_id in all_jobs:
             for task_id in range(len(jobs[job_id])):
                 start_value = solver.Value(job_starts[(job_id, task_id)])
@@ -260,7 +290,6 @@ def run_model(objective_type: Enum, timeline_html: str):
                 select = 0
                 rank = -1
 
-                start = date(2020, 1, 1)
                 for alt_id in range(len(jobs[job_id][task_id])):
                     if solver.BooleanValue(job_presences[(job_id, task_id, alt_id)]):
                         duration = jobs[job_id][task_id][alt_id].processing_time
@@ -282,6 +311,16 @@ def run_model(objective_type: Enum, timeline_html: str):
                             % (job_id, start_value, select, duration, rank, machine)
                         )
 
+        for assignment_id in all_existing:
+            assignment = existing[assignment_id]
+            solution.append(
+                {
+                    "machine_id": assignment.machine_id,
+                    "label": ("existing: %s" % (assignment.type)),
+                    "start": start + timedelta(days=assignment.start),
+                    "end": start + timedelta(days=assignment.end),
+                }
+            )
         print("Solve status: %s" % solver.StatusName(status))
         print("Objective value: %i" % solver.ObjectiveValue())
         print("Makespan: %i" % solver.Value(makespan))
@@ -292,8 +331,10 @@ def run_model(objective_type: Enum, timeline_html: str):
 
 
 def main():
+    jobs = index()
+    existing = existing_assignment_index()
     for obj in Objective:
-        run_model(obj, f"{obj}.html")
+        run_model(jobs, existing, obj, f"{obj}.html")
 
 
 if __name__ == "__main__":

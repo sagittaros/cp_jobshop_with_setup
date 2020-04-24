@@ -32,14 +32,14 @@ def index():
     return [
         [
             [
-                alt("CP1", "P1", 3, 1, 20, domain1, start_after),
-                alt("CP2", "P1", 4, 1, 20, domain1, start_after),
+                alt("CP1", "P1", 3, 1, 40, domain1, start_after),
+                alt("CP2", "P1", 4, 1, 40, domain1, start_after),
             ],  # task 1
             [
-                alt("DP1", "P1", 4, 4, 20, domain1, start_after),
-                alt("DP2", "P1", 6, 3, 20, domain1, start_after),
+                alt("DP1", "P1", 4, 4, 40, domain1, start_after),
+                alt("DP2", "P1", 6, 3, 40, domain1, start_after),
             ],  # task 2
-            [alt("PK1", "P1", 2, 0, 20, domain1, start_after)],  # task 3
+            [alt("PK1", "P1", 2, 0, 40, domain1, start_after)],  # task 3
         ],  # job 1
         [
             [
@@ -76,14 +76,14 @@ def index():
         ],  # job 3
         [
             [
-                alt("CP1", "P2", 3, 1, 16, domain2, start_after),
-                alt("CP2", "P2", 4, 1, 16, domain2, start_after),
+                alt("CP1", "P2", 3, 1, 32, domain2, start_after),
+                alt("CP2", "P2", 4, 1, 32, domain2, start_after),
             ],  # task 1
             [
-                alt("DP1", "P2", 4, 4, 16, domain2, start_after),
-                alt("DP2", "P2", 6, 3, 16, domain2, start_after),
+                alt("DP1", "P2", 4, 4, 32, domain2, start_after),
+                alt("DP2", "P2", 6, 3, 32, domain2, start_after),
             ],  # task 2
-            [alt("PK1", "P2", 2, 0, 16, domain2, start_after)],  # task 3
+            [alt("PK1", "P2", 2, 0, 32, domain2, start_after)],  # task 3
         ],  # job 4
         [
             [
@@ -108,3 +108,15 @@ def index():
             [alt("PK1", "P2", 2, 0, 100, domain2, start_after)],  # task 3
         ],  # job 4
     ]
+
+
+def existing_assignment_index():
+    assignment = collections.namedtuple(
+        "assignment", ["machine_id", "type", "setup_time", "start", "end"],
+    )
+    return [
+        assignment("CP1", "P1", 1, 2, 5),
+        assignment("CPX", "P2", 1, 7, 11),
+        assignment("DP2", "P2", 4, 11, 15),
+    ]
+
