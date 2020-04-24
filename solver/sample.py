@@ -1,3 +1,4 @@
+
 # -*- coding: utf-8 -*-
 """Scheduling problem with transition time between tasks and transitions costs.
 
@@ -13,8 +14,6 @@ import collections
 
 from ortools.sat.python import cp_model
 from google.protobuf import text_format
-from .timeline import export_html
-from datetime import datetime, timedelta
 
 # ----------------------------------------------------------------------------
 # Command line arguments.
@@ -351,7 +350,6 @@ def main(args):
 
     # ----------------------------------------------------------------------------
     # Print solution.
-    solution = []
     if status == cp_model.FEASIBLE or status == cp_model.OPTIMAL:
         for job_id in all_jobs:
             for task_id in range(len(jobs[job_id])):
@@ -360,7 +358,6 @@ def main(args):
                 duration = 0
                 select = 0
                 rank = -1
-                product_type = ""
 
                 for alt_id in range(len(jobs[job_id][task_id])):
                     if jobs[job_id][task_id][alt_id][0] == -1:
@@ -369,19 +366,9 @@ def main(args):
                     if solver.BooleanValue(job_presences[(job_id, task_id, alt_id)]):
                         duration = jobs[job_id][task_id][alt_id][0]
                         machine = jobs[job_id][task_id][alt_id][1]
-                        product_type = jobs[job_id][task_id][alt_id][2]
                         select = alt_id
                         rank = solver.Value(job_ranks[(job_id, task_id, alt_id)])
 
-                end_value = start_value + duration
-                solution.append(
-                    {
-                        "machine_id": machine,
-                        "label": ("j%i: %s" % (job_id, product_type)),
-                        "start": datetime.today() + timedelta(days=start_value),
-                        "end": datetime.today() + timedelta(days=end_value),
-                    }
-                )
                 print(
                     "  Job %i starts at %i (alt %i, duration %i) with rank %i on machine %i"
                     % (job_id, start_value, select, duration, rank, machine)
@@ -390,9 +377,6 @@ def main(args):
         print("Solve status: %s" % solver.StatusName(status))
         print("Objective value: %i" % solver.ObjectiveValue())
         print("Makespan: %i" % solver.Value(makespan))
-        export_html(solution)
-    elif status == cp_model.INFEASIBLE:
-        print("INFEASIBLE")
 
 
 if __name__ == "__main__":
