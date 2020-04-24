@@ -18,6 +18,7 @@ class Objective(Enum):
     SetupTime = "setup_time"
     Transition = "transition"  # implicitly include makespan
     Makespan = "makespan"
+    Composite = "composite"
 
 
 # 2 product types P1 and P2
@@ -138,7 +139,6 @@ def run_model(objective_type: Enum):
 
             # Create alternative intervals.
             l_presences = []
-            l_setup_presences = []
             for alt_id, alt in enumerate(task):
                 alt_suffix = "_j%i_t%i_a%i" % (job_id, task_id, alt_id)
 
@@ -165,7 +165,6 @@ def run_model(objective_type: Enum):
                     "setup_interval" + alt_suffix,
                 )
                 setup_starts[(job_id, task_id, alt_id)] = l_setup_start
-                l_setup_presences.append(l_setup_presence)
 
                 # Link the master variables with the local ones.
                 model.Add(start == l_start).OnlyEnforceIf(l_presence)
@@ -223,6 +222,7 @@ def run_model(objective_type: Enum):
             # If this task is the first, set rank and setuptime
             model.Add(machine_ranks[i] == 0).OnlyEnforceIf(start_lit)
             model.AddImplication(start_lit, machine_setup_presences[i])
+            model.AddImplication(start_lit.Not(), machine_setup_presences[i].Not())
             # Final arc from an arc to the dummy node.
             arcs.append([i + 1, 0, model.NewBoolVar("")])
             # Self arc if the task is not performed.
