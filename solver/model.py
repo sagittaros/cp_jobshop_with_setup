@@ -21,43 +21,105 @@ class Objective(Enum):
 # time is in hours
 def index():
     alt = collections.namedtuple(
-        "alt", ["machine_id", "type", "processing_time", "setup_time", "due"]
+        "alt",
+        [
+            "machine_id",
+            "type",
+            "processing_time",
+            "setup_time",
+            "due",
+            "time_domain",
+            "start_after",
+        ],
     )
+
+    # in reality, each machine can have different shift period
+    domain1 = [(0, 6), (8, 14), (16, 22), (24, 30)]
+    domain2 = [(2, 8), (10, 16), (18, 24), (26, 32)]
+
+    """
+    start_value for start_type="day"
+    task[i].start >= task[i-1].start + start_after
+    if value == -1, we will treat start_type=None
+    """
+    start_after = -1
     return [
         [
-            [alt("CP1", "P1", 3, 1, 11), alt("CP2", "P1", 4, 1, 11)],  # task 1
-            [alt("DP1", "P1", 4, 4, 11), alt("DP2", "P1", 6, 3, 11)],  # task 2
-            [alt("PK1", "P1", 2, 0, 11)],  # task 3
+            [
+                alt("CP1", "P1", 3, 1, 20, domain1, start_after),
+                alt("CP2", "P1", 4, 1, 20, domain1, start_after),
+            ],  # task 1
+            [
+                alt("DP1", "P1", 4, 4, 20, domain1, start_after),
+                alt("DP2", "P1", 6, 3, 20, domain1, start_after),
+            ],  # task 2
+            [alt("PK1", "P1", 2, 0, 20, domain1, start_after)],  # task 3
         ],  # job 1
         [
-            [alt("CP1", "P1", 3, 1, 21), alt("CP2", "P1", 4, 1, 21)],  # task 1
-            [alt("DP1", "P1", 4, 4, 21), alt("DP2", "P1", 6, 3, 21)],  # task 2
-            [alt("PK1", "P1", 2, 0, 21)],  # task 3
+            [
+                alt("CP1", "P1", 3, 1, 21, domain1, start_after),
+                alt("CP2", "P1", 4, 1, 21, domain1, start_after),
+            ],  # task 1
+            [
+                alt("DP1", "P1", 4, 4, 21, domain1, start_after),
+                alt("DP2", "P1", 6, 3, 21, domain1, start_after),
+            ],  # task 2
+            [alt("PK1", "P1", 2, 0, 21, domain1, start_after)],  # task 3
         ],  # job 2
         [
-            [alt("CP1", "P1", 3, 1, 100), alt("CP2", "P1", 4, 1, 100)],  # task 1
-            [alt("DP1", "P1", 4, 4, 100), alt("DP2", "P1", 6, 3, 100)],  # task 2
-            [alt("PK1", "P1", 2, 0, 100)],  # task 3
+            [
+                alt("CP1", "P1", 3, 1, 100, domain1, start_after),
+                alt("CP2", "P1", 4, 1, 100, domain1, start_after),
+            ],  # task 1
+            [
+                alt("DP1", "P1", 4, 4, 100, domain1, start_after),
+                alt("DP2", "P1", 6, 3, 100, domain1, start_after),
+            ],  # task 2
+            [alt("PK1", "P1", 2, 0, 100, domain1, start_after)],  # task 3
         ],  # job 2
         [
-            [alt("CP1", "P2", 3, 1, 22), alt("CP2", "P2", 4, 1, 22)],  # task 1
-            [alt("DP1", "P2", 4, 4, 22), alt("DP2", "P2", 6, 3, 22)],  # task 2
-            [alt("PK1", "P2", 2, 0, 22)],  # task 3
+            [
+                alt("CP1", "P2", 3, 1, 22, domain1, start_after),
+                alt("CP2", "P2", 4, 1, 22, domain1, start_after),
+            ],  # task 1
+            [
+                alt("DP1", "P2", 4, 4, 22, domain1, start_after),
+                alt("DP2", "P2", 6, 3, 22, domain1, start_after),
+            ],  # task 2
+            [alt("PK1", "P2", 2, 0, 22, domain1, start_after)],  # task 3
         ],  # job 3
         [
-            [alt("CP1", "P2", 3, 1, 16), alt("CP2", "P2", 4, 1, 16)],  # task 1
-            [alt("DP1", "P2", 4, 4, 16), alt("DP2", "P2", 6, 3, 16)],  # task 2
-            [alt("PK1", "P2", 2, 0, 16)],  # task 3
+            [
+                alt("CP1", "P2", 3, 1, 16, domain2, start_after),
+                alt("CP2", "P2", 4, 1, 16, domain2, start_after),
+            ],  # task 1
+            [
+                alt("DP1", "P2", 4, 4, 16, domain2, start_after),
+                alt("DP2", "P2", 6, 3, 16, domain2, start_after),
+            ],  # task 2
+            [alt("PK1", "P2", 2, 0, 16, domain2, start_after)],  # task 3
         ],  # job 4
         [
-            [alt("CP1", "P2", 3, 1, 100), alt("CP2", "P2", 4, 1, 100)],  # task 1
-            [alt("DP1", "P2", 4, 4, 100), alt("DP2", "P2", 6, 3, 100)],  # task 2
-            [alt("PK1", "P2", 2, 0, 100)],  # task 3
+            [
+                alt("CP1", "P2", 3, 1, 100, domain2, start_after),
+                alt("CP2", "P2", 4, 1, 100, domain2, start_after),
+            ],  # task 1
+            [
+                alt("DP1", "P2", 4, 4, 100, domain2, start_after),
+                alt("DP2", "P2", 6, 3, 100, domain2, start_after),
+            ],  # task 2
+            [alt("PK1", "P2", 2, 0, 100, domain2, start_after)],  # task 3
         ],  # job 4
         [
-            [alt("CP1", "P2", 3, 1, 100), alt("CP2", "P2", 4, 1, 100)],  # task 1
-            [alt("DP1", "P2", 4, 4, 100), alt("DP2", "P2", 6, 3, 100)],  # task 2
-            [alt("PK1", "P2", 2, 0, 100)],  # task 3
+            [
+                alt("CP1", "P2", 3, 1, 100, domain2, start_after),
+                alt("CP2", "P2", 4, 1, 100, domain2, start_after),
+            ],  # task 1
+            [
+                alt("DP1", "P2", 4, 4, 100, domain2, start_after),
+                alt("DP2", "P2", 6, 3, 100, domain2, start_after),
+            ],  # task 2
+            [alt("PK1", "P2", 2, 0, 100, domain2, start_after)],  # task 3
         ],  # job 4
     ]
 
@@ -115,6 +177,7 @@ def run_model(objective_type: Enum, timeline_html: str):
     for job_id in all_jobs:
         job = jobs[job_id]
         num_tasks = len(job)
+        previous_start = None
         previous_end = None
         for task_id in range(num_tasks):
             task = job[task_id]
@@ -134,24 +197,31 @@ def run_model(objective_type: Enum, timeline_html: str):
             )
             end = model.NewIntVar(0, horizon, "end" + suffix_name)
 
+            # Add precedence constraint
+            start_after = task[0].start_after
+            if start_after < 0:
+                if previous_end:
+                    model.Add(start >= previous_end)
+            else:
+                if previous_start:
+                    model.Add(start >= previous_start + start_after)
+            previous_start = start
+            previous_end = end
+
             # Store the start for the solution.
             job_starts[(job_id, task_id)] = start
-
-            # Add precedence with previous task in the same job.
-            if previous_end:
-                model.Add(start >= previous_end)
-            previous_end = end
 
             # Create alternative intervals.
             l_presences = []
             for alt_id, alt in enumerate(task):
                 alt_suffix = "_j%i_t%i_a%i" % (job_id, task_id, alt_id)
 
+                domain = cp_model.Domain.FromIntervals(alt.time_domain)
                 # create optional interval for machine candidate
                 l_presence = model.NewBoolVar("presence" + alt_suffix)
-                l_start = model.NewIntVar(0, horizon, "start" + alt_suffix)
+                l_start = model.NewIntVarFromDomain(domain, "start" + alt_suffix)
+                l_end = model.NewIntVarFromDomain(domain, "end" + alt_suffix)
                 l_duration = alt.processing_time
-                l_end = model.NewIntVar(0, horizon, "end" + alt_suffix)
                 l_interval = model.NewOptionalIntervalVar(
                     l_start, l_duration, l_end, l_presence, "interval" + alt_suffix
                 )
@@ -305,7 +375,6 @@ def run_model(objective_type: Enum, timeline_html: str):
                         product_type = jobs[job_id][task_id][alt_id].type
                         select = alt_id
                         rank = solver.Value(job_ranks[(job_id, task_id, alt_id)])
-
                         end_value = start_value + duration
                         solution.append(
                             {
