@@ -27,7 +27,7 @@ def index():
             "type",
             "processing_time",
             "setup_time",
-            "due",
+            "due",  # if -1, treat as no due date
             "time_domain",
             "start_after",
         ],
@@ -234,7 +234,8 @@ def run_model(objective_type: Enum, timeline_html: str):
                 model.Add(end == l_end).OnlyEnforceIf(l_presence)
 
                 # due date constraint
-                model.Add(end < alt.due).OnlyEnforceIf(l_presence)
+                if alt.due > 0:
+                    model.Add(end < alt.due).OnlyEnforceIf(l_presence)
 
                 # Add the local variables to the right machine.
                 intervals_per_machines[alt.machine_id].append(l_interval)
