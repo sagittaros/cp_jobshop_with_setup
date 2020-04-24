@@ -16,7 +16,7 @@ from enum import Enum
 
 class Objective(Enum):
     SetupTime = "setup_time"
-    Switches = "switches"  # implicitly include makespan
+    Transition = "transition"  # implicitly include makespan
     Makespan = "makespan"
 
 
@@ -257,20 +257,29 @@ def run_model(objective_type: Enum):
     model.AddMaxEquality(makespan, job_ends)
 
     if objective_type == Objective.SetupTime:
+        print("Objective: Minimize setup time")
         model.Minimize(
             sum(
                 switch_literals[i] * setup_coeffs[i]
                 for i in range(len(switch_literals))
             )
         )
-    elif objective_type == Objective.Switches:
+    elif objective_type == Objective.Transition:
+        print("Objective: Minimize transition")
+        model.Minimize(sum(switch_literals))
+    elif objective_type == Objective.Makespan:
+        print("Objective: Minimize makespan")
+        model.Minimize(makespan)
+    else:
         makespan_weight = 1
         transition_weight = 5
+        print(
+            "Objective: Minimize transitions and makespan with weight %i and %i"
+            % (transition_weight, makespan_weight)
+        )
         model.Minimize(
             makespan * makespan_weight + sum(switch_literals) * transition_weight
         )
-    elif objective_type == Objective.Makespan:
-        model.Minimize(makespan)
 
     # Write problem to file.
     with open("problem.proto", "w") as text_file:
@@ -342,7 +351,7 @@ def run_model(objective_type: Enum):
         print("Solve status: %s" % solver.StatusName(status))
         print("Objective value: %i" % solver.ObjectiveValue())
         print("Makespan: %i" % solver.Value(makespan))
-        print("Switches: %i" % solver.Value(sum(switch_literals)))
+        print("Transition: %i" % solver.Value(sum(switch_literals)))
         export_html(solution)
     elif status == cp_model.INFEASIBLE:
         print("INFEASIBLE")
