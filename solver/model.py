@@ -1,7 +1,7 @@
 import collections
 
 from ortools.sat.python import cp_model
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from .timeline import export_html
 from .solprinter import SolutionPrinter
 from enum import Enum
@@ -32,9 +32,9 @@ def index():
     )
     return [
         [
-            [alt("CP1", "P1", 3, 1, 10), alt("CP2", "P1", 4, 1, 10)],  # task 1
-            [alt("DP1", "P1", 4, 4, 10), alt("DP2", "P1", 6, 3, 10)],  # task 2
-            [alt("PK1", "P1", 2, 0, 10)],  # task 3
+            [alt("CP1", "P1", 3, 1, 11), alt("CP2", "P1", 4, 1, 11)],  # task 1
+            [alt("DP1", "P1", 4, 4, 11), alt("DP2", "P1", 6, 3, 11)],  # task 2
+            [alt("PK1", "P1", 2, 0, 11)],  # task 3
         ],  # job 1
         [
             [alt("CP1", "P1", 3, 1, 21), alt("CP2", "P1", 4, 1, 21)],  # task 1
@@ -221,6 +221,9 @@ def run_model(objective_type: Enum):
             arcs.append([0, i + 1, start_lit])
             # If this task is the first, set rank and setuptime
             model.Add(machine_ranks[i] == 0).OnlyEnforceIf(start_lit)
+            model.Add(machine_starts[i] >= machine_setuptimes[i]).OnlyEnforceIf(
+                start_lit
+            )
             # Final arc from an arc to the dummy node.
             arcs.append([i + 1, 0, model.NewBoolVar("")])
             # Self arc if the task is not performed.
@@ -306,6 +309,7 @@ def run_model(objective_type: Enum):
                 select = 0
                 rank = -1
 
+                start = date(2020, 1, 1)
                 for alt_id in range(len(jobs[job_id][task_id])):
                     if solver.BooleanValue(job_presences[(job_id, task_id, alt_id)]):
                         duration = jobs[job_id][task_id][alt_id].processing_time
@@ -319,8 +323,8 @@ def run_model(objective_type: Enum):
                             {
                                 "machine_id": machine,
                                 "label": ("j%i: %s" % (job_id, product_type)),
-                                "start": datetime.today() + timedelta(days=start_value),
-                                "end": datetime.today() + timedelta(days=end_value),
+                                "start": start + timedelta(days=start_value),
+                                "end": start + timedelta(days=end_value),
                             }
                         )
                         print(
@@ -341,9 +345,8 @@ def run_model(objective_type: Enum):
                                 {
                                     "machine_id": machine,
                                     "label": "setup_time",
-                                    "start": datetime.today()
-                                    + timedelta(days=setup_start),
-                                    "end": datetime.today() + timedelta(days=setup_end),
+                                    "start": start + timedelta(days=setup_start),
+                                    "end": start + timedelta(days=setup_end),
                                 }
                             )
                             print(
