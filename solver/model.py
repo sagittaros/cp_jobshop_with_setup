@@ -1,10 +1,12 @@
 import collections
+from datetime import date, timedelta
+from enum import Enum
 
 from ortools.sat.python import cp_model
-from datetime import timedelta, date
-from .timeline import export_html
+
+from .states import index, existing_assignment_index
 from .solprinter import SolutionPrinter
-from enum import Enum
+from .timeline import export_html
 
 
 class Objective(Enum):
@@ -14,122 +16,19 @@ class Objective(Enum):
     Composite = "composite"
 
 
-# 2 product types P1 and P2
-# 5 machines CP1, CP2, DP1, DP2, PK1 (human)
-# 2 sales items J1 and J2 of the kind P1
-# 2 sales items J3 and J4 of the kind P2
-# time is in hours
-def index():
-    alt = collections.namedtuple(
-        "alt",
-        [
-            "machine_id",
-            "type",
-            "processing_time",
-            "setup_time",
-            "due",  # if -1, treat as no due date
-            "time_domain",
-            "start_after",
-        ],
-    )
-
-    # in reality, each machine can have different shift period
-    domain1 = [(0, 6), (8, 14), (16, 22), (24, 30)]
-    domain2 = [(2, 8), (10, 16), (18, 24), (26, 32)]
-
-    """
-    start_value for start_type="day"
-    task[i].start >= task[i-1].start + start_after
-    if value == -1, we will treat start_type=None
-    """
-    start_after = -1
-    return [
-        [
-            [
-                alt("CP1", "P1", 3, 1, 20, domain1, start_after),
-                alt("CP2", "P1", 4, 1, 20, domain1, start_after),
-            ],  # task 1
-            [
-                alt("DP1", "P1", 4, 4, 20, domain1, start_after),
-                alt("DP2", "P1", 6, 3, 20, domain1, start_after),
-            ],  # task 2
-            [alt("PK1", "P1", 2, 0, 20, domain1, start_after)],  # task 3
-        ],  # job 1
-        [
-            [
-                alt("CP1", "P1", 3, 1, 21, domain1, start_after),
-                alt("CP2", "P1", 4, 1, 21, domain1, start_after),
-            ],  # task 1
-            [
-                alt("DP1", "P1", 4, 4, 21, domain1, start_after),
-                alt("DP2", "P1", 6, 3, 21, domain1, start_after),
-            ],  # task 2
-            [alt("PK1", "P1", 2, 0, 21, domain1, start_after)],  # task 3
-        ],  # job 2
-        [
-            [
-                alt("CP1", "P1", 3, 1, 100, domain1, start_after),
-                alt("CP2", "P1", 4, 1, 100, domain1, start_after),
-            ],  # task 1
-            [
-                alt("DP1", "P1", 4, 4, 100, domain1, start_after),
-                alt("DP2", "P1", 6, 3, 100, domain1, start_after),
-            ],  # task 2
-            [alt("PK1", "P1", 2, 0, 100, domain1, start_after)],  # task 3
-        ],  # job 2
-        [
-            [
-                alt("CP1", "P2", 3, 1, 22, domain1, start_after),
-                alt("CP2", "P2", 4, 1, 22, domain1, start_after),
-            ],  # task 1
-            [
-                alt("DP1", "P2", 4, 4, 22, domain1, start_after),
-                alt("DP2", "P2", 6, 3, 22, domain1, start_after),
-            ],  # task 2
-            [alt("PK1", "P2", 2, 0, 22, domain1, start_after)],  # task 3
-        ],  # job 3
-        [
-            [
-                alt("CP1", "P2", 3, 1, 16, domain2, start_after),
-                alt("CP2", "P2", 4, 1, 16, domain2, start_after),
-            ],  # task 1
-            [
-                alt("DP1", "P2", 4, 4, 16, domain2, start_after),
-                alt("DP2", "P2", 6, 3, 16, domain2, start_after),
-            ],  # task 2
-            [alt("PK1", "P2", 2, 0, 16, domain2, start_after)],  # task 3
-        ],  # job 4
-        [
-            [
-                alt("CP1", "P2", 3, 1, 100, domain2, start_after),
-                alt("CP2", "P2", 4, 1, 100, domain2, start_after),
-            ],  # task 1
-            [
-                alt("DP1", "P2", 4, 4, 100, domain2, start_after),
-                alt("DP2", "P2", 6, 3, 100, domain2, start_after),
-            ],  # task 2
-            [alt("PK1", "P2", 2, 0, 100, domain2, start_after)],  # task 3
-        ],  # job 4
-        [
-            [
-                alt("CP1", "P2", 3, 1, 100, domain2, start_after),
-                alt("CP2", "P2", 4, 1, 100, domain2, start_after),
-            ],  # task 1
-            [
-                alt("DP1", "P2", 4, 4, 100, domain2, start_after),
-                alt("DP2", "P2", 6, 3, 100, domain2, start_after),
-            ],  # task 2
-            [alt("PK1", "P2", 2, 0, 100, domain2, start_after)],  # task 3
-        ],  # job 4
-    ]
-
-
 def list_machines(jobs):
     machines_lookup = {}
     for job in jobs:
         for task in job:
             for alt in task:
                 machines_lookup[alt.machine_id] = 1
+    return list(machines_lookup.keys())
+
+
+def list_existing_machines(existing):
+    machines_lookup = {}
+    for assignment in existing:
+        machines_lookup[assignment.machine_id] = 1
     return list(machines_lookup.keys())
 
 
@@ -146,15 +45,16 @@ def compute_horizon(jobs):
     return horizon
 
 
-def run_model(objective_type: Enum, timeline_html: str):
+def run_model(jobs, existing, objective_type: Enum, timeline_html: str):
     # Model.
     model = cp_model.CpModel()
 
     # inputs
-    jobs = index()
     num_jobs = len(jobs)
     all_jobs = range(num_jobs)
-    machines = list_machines(jobs)
+    num_existing = len(existing)
+    all_existing = range(num_existing)
+    machines = set(list_machines(jobs)) | set(list_existing_machines(existing))
 
     # Compute a maximum makespan greedily.
     horizon = compute_horizon(jobs)
@@ -225,7 +125,9 @@ def run_model(objective_type: Enum, timeline_html: str):
                 l_interval = model.NewOptionalIntervalVar(
                     l_start, l_duration, l_end, l_presence, "interval" + alt_suffix
                 )
-                l_rank = model.NewIntVar(-1, num_jobs, "rank" + alt_suffix)
+                l_rank = model.NewIntVar(
+                    -1, num_jobs + num_existing, "rank" + alt_suffix
+                )
                 l_presences.append(l_presence)
 
                 # Link the master variables with the local ones.
@@ -253,6 +155,25 @@ def run_model(objective_type: Enum, timeline_html: str):
             # Only one machine can process each lot.
             model.Add(sum(l_presences) == 1)
         job_ends.append(previous_end)
+
+    for assignment_id in all_existing:
+        suffix = "_a%i" % assignment_id
+        assignment = existing[assignment_id]
+        presence = model.NewConstant(1)
+        start = model.NewConstant(assignment.start)
+        end = model.NewConstant(assignment.end)
+        duration = assignment.end - assignment.start
+        interval = model.NewIntervalVar(start, duration, end, "interval" + suffix)
+        rank = model.NewIntVar(-1, num_jobs + num_existing, "rank" + suffix)
+
+        # Add local variables to the machine
+        intervals_per_machines[assignment.machine_id].append(interval)
+        starts_per_machines[assignment.machine_id].append(start)
+        ends_per_machines[assignment.machine_id].append(end)
+        presences_per_machines[assignment.machine_id].append(presence)
+        types_per_machines[assignment.machine_id].append(assignment.type)
+        setuptimes_per_machines[assignment.machine_id].append(assignment.setup_time)
+        ranks_per_machines[assignment.machine_id].append(rank)
 
     # Create machines constraints nonoverlap process
     for machine_id in machines:
@@ -359,6 +280,7 @@ def run_model(objective_type: Enum, timeline_html: str):
     # Print solution.
     solution = []
     if status == cp_model.FEASIBLE or status == cp_model.OPTIMAL:
+        start = date(2020, 1, 1)
         for job_id in all_jobs:
             for task_id in range(len(jobs[job_id])):
                 start_value = solver.Value(job_starts[(job_id, task_id)])
@@ -368,7 +290,6 @@ def run_model(objective_type: Enum, timeline_html: str):
                 select = 0
                 rank = -1
 
-                start = date(2020, 1, 1)
                 for alt_id in range(len(jobs[job_id][task_id])):
                     if solver.BooleanValue(job_presences[(job_id, task_id, alt_id)]):
                         duration = jobs[job_id][task_id][alt_id].processing_time
@@ -390,6 +311,16 @@ def run_model(objective_type: Enum, timeline_html: str):
                             % (job_id, start_value, select, duration, rank, machine)
                         )
 
+        for assignment_id in all_existing:
+            assignment = existing[assignment_id]
+            solution.append(
+                {
+                    "machine_id": assignment.machine_id,
+                    "label": ("existing: %s" % (assignment.type)),
+                    "start": start + timedelta(days=assignment.start),
+                    "end": start + timedelta(days=assignment.end),
+                }
+            )
         print("Solve status: %s" % solver.StatusName(status))
         print("Objective value: %i" % solver.ObjectiveValue())
         print("Makespan: %i" % solver.Value(makespan))
@@ -400,11 +331,10 @@ def run_model(objective_type: Enum, timeline_html: str):
 
 
 def main():
+    jobs = index()
+    existing = existing_assignment_index()
     for obj in Objective:
-        run_model(obj, f"{obj}.html")
-    # run_model(Objective.SetupTime)
-    # run_model(Objective.Composite)
-    # run_model(Objective.Transition)
+        run_model(jobs, existing, obj, f"{obj}.html")
 
 
 if __name__ == "__main__":
