@@ -6,7 +6,7 @@
 - Shifts and breaks (integer domains expressed as intervals)
 - Existing assignments as constraints
 - Multiple objectives
-- Rendering to gantt chart
+- Render into gantt chart
 
 ## Instruction
 ```
