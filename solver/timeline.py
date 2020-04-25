@@ -65,7 +65,7 @@ def main():
             "end": date(2012, 4, 2),
         },
     ]
-    export_html(data)
+    export_html(data, "export.html")
 
 
 if __name__ == "__main__":
