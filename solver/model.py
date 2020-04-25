@@ -236,6 +236,11 @@ def run_model(jobs, existing, objective_type: Enum, timeline_html: str):
                     machine_starts[j] >= machine_ends[i] + transition_time
                 ).OnlyEnforceIf(lit)
 
+        is_used = model.NewBoolVar("")
+        model.Add(sum(machine_presences) > 0).OnlyEnforceIf(is_used)
+        model.Add(sum(machine_presences) == 0).OnlyEnforceIf(is_used.Not())
+        arcs.append([0, 0, is_used.Not()])
+        # https://github.com/google/or-tools/issues/1703
         model.AddCircuit(arcs)
 
     # Objective.
